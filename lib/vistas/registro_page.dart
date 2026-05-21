@@ -17,7 +17,7 @@ class RegistroPage extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.black),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -27,14 +27,7 @@ class RegistroPage extends StatelessWidget {
                 const CircleAvatar(
                   radius: 70,
                   backgroundColor: Colors.black26,
-                  child: Text(
-                    'NEOINN',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  backgroundImage: AssetImage('lib/imagenes/codium.jpeg'),
                 ),
 
                 const SizedBox(height: 35),
@@ -65,6 +58,7 @@ class RegistroPage extends StatelessWidget {
                       const SizedBox(height: 14),
                       _inputField('Contraseña', true),
                       const SizedBox(height: 14),
+
                       SizedBox(
                         width: double.infinity,
                         height: 48,

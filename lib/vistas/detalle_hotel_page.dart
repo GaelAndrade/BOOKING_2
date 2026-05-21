@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import '../widgets/custom_navbar.dart';
+import 'habitaciones_page.dart';
 
 class ServicioHotel {
   final IconData icono;
@@ -35,12 +36,45 @@ class DetalleHotelPage extends StatefulWidget {
 class _DetalleHotelPageState extends State<DetalleHotelPage> {
   int imagenActual = 0;
 
-  late final List<String> imagenesHotel = [
-    widget.imagen,
-    'lib/imagenes/hotel_detalle_1.jpg',
-    'lib/imagenes/hotel_detalle_2.jpg',
-    'lib/imagenes/hotel_detalle_3.jpg',
-  ];
+  late final List<String> imagenesHotel = _obtenerImagenesHotel(widget.nombre);
+
+  List<String> _obtenerImagenesHotel(String hotel) {
+    switch (hotel) {
+      case 'Hotel Salinas':
+        return [
+          'lib/imagenes/salinas_1.jpg', //ya estan todas
+          'lib/imagenes/salinas_2.jpg',
+          'lib/imagenes/salinas_3.jpg',
+        ];
+
+      case 'Poza Rica Inn':
+        return [
+          'lib/imagenes/poza_rica_inn_1.jpg', //Ya esta
+          'lib/imagenes/poza_rica_inn_2.jpg', //ya esta
+          'lib/imagenes/poza_rica_inn_3.jpg', //ya esta
+        ];
+      case 'La Quinta':
+        return [
+          'lib/imagenes/la_quinta_1.jpg', //ya esta todo
+          'lib/imagenes/la_quinta_2.jpg',
+          'lib/imagenes/la_quinta_3.jpg',
+        ];
+      case 'Hotel Paris':
+        return [
+          'lib/imagenes/paris_1.jpg',
+          'lib/imagenes/paris_2.png',
+          'lib/imagenes/paris_3.jpg',
+        ];
+      case 'Hotel Victoria':
+        return [
+          'lib/imagenes/victoria_1.jpg',
+          'lib/imagenes/victoria_2.jpg',
+          'lib/imagenes/victoria_3.jpg',
+        ];
+      default:
+        return [widget.imagen];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +248,15 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  HabitacionesPage(nombreHotel: widget.nombre),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Ver habitaciones',
                           style: TextStyle(fontSize: 18),
@@ -228,6 +270,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
           ),
         ),
       ),
+
       bottomNavigationBar: CustomNavbar(currentIndex: 0, onTap: (index) {}),
     );
   }

@@ -20,7 +20,7 @@ class LoginPage extends StatelessWidget {
                 const CircleAvatar(
                   radius: 70,
                   backgroundColor: Colors.black26,
-                  backgroundImage: AssetImage('assets/images/logo_neoinn.png'),
+                  backgroundImage: AssetImage('lib/imagenes/codium.jpeg'),
                 ),
 
                 const SizedBox(height: 35),
