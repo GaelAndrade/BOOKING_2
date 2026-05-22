@@ -65,7 +65,7 @@ class ReservacionesPage extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: CustomNavbar(currentIndex: 1, onTap: (index) {}),
+      //bottomNavigationBar: CustomNavbar(currentIndex: 1, onTap: (index) {}),
     );
   }
 }

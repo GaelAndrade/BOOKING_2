@@ -151,7 +151,7 @@ class HomePage extends StatelessWidget {
         ),
       ),
 
-      bottomNavigationBar: CustomNavbar(currentIndex: 0, onTap: (index) {}),
+      //bottomNavigationBar: CustomNavbar(currentIndex: 0, onTap: (index) {}),
     );
   }
 

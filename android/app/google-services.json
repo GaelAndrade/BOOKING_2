@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "580542129623",
+    "project_id": "tutorial-1baaf",
+    "storage_bucket": "tutorial-1baaf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:580542129623:android:6535376212f19dcd09d792",
+        "android_client_info": {
+          "package_name": "com.example.booking"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "580542129623-qm5nnuf44ubn6ql2na1v4s03ltvmpr68.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiLb9ihk_giPXXEqfHFRbUPyckg9-leCQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "580542129623-qm5nnuf44ubn6ql2na1v4s03ltvmpr68.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

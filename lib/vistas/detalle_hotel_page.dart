@@ -271,7 +271,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
         ),
       ),
 
-      bottomNavigationBar: CustomNavbar(currentIndex: 0, onTap: (index) {}),
+      //bottomNavigationBar: CustomNavbar(currentIndex: 0, onTap: (index),
     );
   }
 }

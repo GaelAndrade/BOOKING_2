@@ -299,7 +299,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
           ),
         ),
       ),
-      bottomNavigationBar: CustomNavbar(currentIndex: 1, onTap: (index) {}),
+      //bottomNavigationBar: CustomNavbar(currentIndex: 1, onTap: (index) {}),
     );
   }
 

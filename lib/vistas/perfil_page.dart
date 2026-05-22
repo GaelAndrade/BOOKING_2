@@ -52,7 +52,7 @@ class PerfilPage extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: CustomNavbar(currentIndex: 2, onTap: (index) {}),
+      //bottomNavigationBar: CustomNavbar(currentIndex: 2, onTap: (index) {}),
     );
   }
 }
