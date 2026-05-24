@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
-import '../widgets/custom_navbar.dart';
 
 class ReservacionPage extends StatefulWidget {
   final String nombreHotel;
