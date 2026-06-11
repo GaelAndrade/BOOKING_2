@@ -43,6 +43,8 @@ dependencies:
   firebase_core: ^3.0.0  # esto es necesario para inicializar Firebase en tu aplicación
   firebase_auth: ^5.0.0  # esto es necesario para la autenticación con Firebase aunque no se use directamente para el inicio de sesión con correo y contraseña, es necesario para la autenticación con Google
   google_sign_in: ^6.0.0 # esto es necesario para la autenticación con Google
+  sqflite: ^2.4.2+1
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

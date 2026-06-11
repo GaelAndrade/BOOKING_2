@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
+import '../data/app_database.dart';
+import '../modelo/reservacion.dart';
 
 class ReservacionPage extends StatefulWidget {
   final String nombreHotel;
@@ -80,7 +82,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
     return '${fecha.day}/${fecha.month}/${fecha.year}';
   }
 
-  void _confirmarReservacion() {
+  Future<void> _confirmarReservacion() async {
     if (fechaEntrada == null || fechaSalida == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecciona fecha de entrada y salida.')),
@@ -100,11 +102,43 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reservación registrada provisionalmente.')),
+    // Se busca el hotel en la base de datos usando el nombre que se recibe desde la página de habitaciones.
+    final hotel = await AppDatabase.instance.getHotelPorNombre(
+      widget.nombreHotel,
+    );
+    if (hotel == null || hotel.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se encontró el hotel en la base de datos.'),
+        ),
+      );
+      return;
+    }
+
+    // Insertar la reservación en SQLite.
+    final nuevaReservacion = Reservacion(
+      usuarioId:
+          1, // Usuario local temporal hasta que se integre autenticación.
+      hotelId: hotel.id!,
+      habitacionNombre: widget.nombreHabitacion,
+      fechaEntrada: fechaEntrada!.millisecondsSinceEpoch,
+      fechaSalida: fechaSalida!.millisecondsSinceEpoch,
+      huespedes: 1,
+      total: total.toDouble(),
+      estado: 'confirmada',
+      createdAt: DateTime.now().millisecondsSinceEpoch,
     );
 
-    // Aquí después conectaremos SQLite para guardar: hotel, habitación, fechas, noches, total y método de pago
+    await AppDatabase.instance.insertReservacion(nuevaReservacion);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Reservación guardada en la base de datos.'),
+      ),
+    );
+    Navigator.pop(context);
   }
 
   @override
