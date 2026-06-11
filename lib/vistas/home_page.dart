@@ -8,15 +8,16 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    //El scaffold es el widget base para la pantalla principal
+    return Scaffold( 
       body: AppBackground(
-        child: SafeArea(
-          child: Padding(
+        child: SafeArea( //Se encarga de mantener todo bien organizado dentro de la pantalla
+          child: Padding( //el child es de tipo wdget, es decir, el widget que va dentro del widget
             padding: const EdgeInsets.all(22),
             child: ListView(
               children: [
                 const Text(
-                  'Hola, ¿cómo estás?',
+                  'Hola, ¿cómo estás?', //Aqui ira el nombre del usuario
                   style: TextStyle(
                     color: AppColors.white,
                     fontSize: 24,
@@ -25,8 +26,9 @@ class HomePage extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 25),
-
-                _hotelCard(
+                
+                //Se inicializan los hoteles con sus datos para mostrarlos en la pantalla principal
+                _hotelCard( //Hicimos unas cartas con los widgets para mostrar cada hotel
                   context,
                   nombre: 'Hotel Salinas',
                   direccion: 'Boulevard Adolfo Ruiz Cortinez',
@@ -35,7 +37,7 @@ class HomePage extends StatelessWidget {
                   descripcion:
                       'Hotel Salinas ofrece una estancia cómoda cerca del boulevard Adolfo Ruiz Cortinez. Es una opción ideal para viajes familiares, descanso o visitas de trabajo dentro de la ciudad.',
                   servicios: const [
-                    ServicioHotel(icono: Icons.pool, texto: 'Alberca'),
+                    ServicioHotel(icono: Icons.pool, texto: 'Alberca'), //estos son iconos que flutter tiene predefinidos para mostrar los servicios de cada hotel
                     ServicioHotel(icono: Icons.wifi, texto: 'Wifi gratis'),
                     ServicioHotel(
                       icono: Icons.restaurant,
@@ -48,7 +50,7 @@ class HomePage extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 20), //separamos cada hotel con un espacio
 
                 _hotelCard(
                   context,
@@ -154,7 +156,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _hotelCard(
+  Widget _hotelCard( //Este widget se encarga de mostrar cada hotel en la pantalla principal, recibe los datos de cada hotel para mostrarlos en la tarjeta
     BuildContext context, {
     required String nombre,
     required String direccion,
@@ -162,8 +164,9 @@ class HomePage extends StatelessWidget {
     required int estrellas,
     required String descripcion,
     required List<ServicioHotel> servicios,
-  }) {
-    return Container(
+  }){
+    //Aqui configuramos el contenedor de cada hotel
+    return Container( //cada hotel se muestra dentro de un contenedor con una imagen, el nombre del hotel, su dirección, su calificación en estrellas, una breve descripción y los servicios que ofrece. Al hacer clic en "Ver detalles", se navega a una página con información más detallada sobre el hotel.
       decoration: BoxDecoration(
         color: AppColors.inputBackground,
         borderRadius: BorderRadius.circular(20),
@@ -181,10 +184,11 @@ class HomePage extends StatelessWidget {
               fit: BoxFit.cover,
             ),
           ),
-
-          Padding(
+          
+          //El resto de la información del hotel se muestra debajo de la imagen
+          Padding( //El pading se encarga de darle un espacio entre la imagen y el texto para que no se vea tan amontonado
             padding: const EdgeInsets.all(16),
-            child: Column(
+            child: Column( // el child es una columna que muestra los datos de los hoteles
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -196,7 +200,7 @@ class HomePage extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 6),
-
+                //Agregamos unas estrellas que sirve como calificacion del hotel
                 Row(
                   children: List.generate(
                     5,
@@ -210,6 +214,7 @@ class HomePage extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
+                //Mostramos la dirección del hotel con un icono de ubicación
                 Row(
                   children: [
                     const Icon(
@@ -228,7 +233,7 @@ class HomePage extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 15),
-
+                //Aqui mostramos una breve descripción del hotel para que el usuario tenga una idea de lo que ofrece cada hotel antes de entrar a ver los detalles
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
@@ -236,7 +241,7 @@ class HomePage extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => DetalleHotelPage(
+                          builder: (_) => DetalleHotelPage( //Al hacer clic en "Ver detalles", se navega a una página con información más detallada sobre el hotel, se le pasan los datos del hotel para mostrarlos en la página de detalles
                             nombre: nombre,
                             direccion: direccion,
                             imagen: imagen,

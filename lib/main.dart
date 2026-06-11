@@ -3,7 +3,7 @@ import 'vistas/login_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
-void main() {
+void main() { //Se asegura de que Flutter esté inicializado antes de ejecutar la aplicación
   WidgetsFlutterBinding.ensureInitialized();
   runApp(HotelApp());
 }
@@ -15,6 +15,7 @@ class HotelApp extends StatelessWidget {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  //El widget principal de la aplicación, que se encarga de mostrar la pantalla de inicio de sesión después de inicializar Firebase
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -29,7 +30,8 @@ class HotelApp extends StatelessWidget {
               body: Center(child: CircularProgressIndicator()),
             );
           }
-
+          //Como habiamos tenido errores con el api, 
+          //pusimos un mensaje de error para mostar especificamente que estaba fallando
           if (snapshot.hasError) {
             return Scaffold(
               body: Center(
@@ -41,7 +43,7 @@ class HotelApp extends StatelessWidget {
               ),
             );
           }
-
+          //Si la inicialización es exitosa, se muestra la pantalla de inicio de sesión
           return const LoginPage();
         },
       ),

@@ -1,24 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in/google_sign_in.dart'; 
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import 'registro_page.dart';
 import 'main_page.dart';
 
+//Se define la clase para poder llamarla desde otras partes del codigo
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key}); //
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState(); //
 }
 
+
 class _LoginPageState extends State<LoginPage> {
+  //Se inicializan las variables necesarias para la autenticación con Google
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   bool _isLoading = false;
 
   @override
+  //Aqui definos el widget de la imagen 
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
@@ -47,6 +51,8 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 25),
 
+                //Aqui se definen los campos de texto para el usuario y la contraseña, 
+                //asi como el boton de aceptar que navega a la pantalla principal
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -67,11 +73,10 @@ class _LoginPageState extends State<LoginPage> {
                         height: 48,
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.pushReplacement(
+                            Navigator.pushReplacement( //Se navega a la pantalla principal al presionar el boton de aceptar
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    MainPage(), //Se quita el const para permitir la navegación
+                                builder: (_) => MainPage(), //Se quita el const para permitir la navegación
                               ),
                             );
                           },
@@ -84,8 +89,10 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 30),
 
+                //Aqui se muestra un mensaje para los usuarios que no tienen cuenta, 
+                //con un enlace para registrarse
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center, //Aqui centramos el texto y el enlace
                   children: [
                     const Text(
                       '¿No tienes cuenta? ',
@@ -95,16 +102,16 @@ class _LoginPageState extends State<LoginPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    GestureDetector(
+                    GestureDetector( //El GestureDetector se encarga de detectar el toque en el texto "Regístrate" para navegar a la pantalla de registro
                       onTap: () {
-                        Navigator.push(
+                        Navigator.push( //Se navega a la pantalla de registro al hacer clic en "Regístrate"
                           context,
                           MaterialPageRoute(
                             builder: (_) => const RegistroPage(),
                           ),
                         );
                       },
-                      child: const Text(
+                      child: const Text( //El boton viene siendo el texto resaltado en color amarillo y no un boton como tal
                         'Regístrate',
                         style: TextStyle(
                           color: Colors.amber,
@@ -117,7 +124,8 @@ class _LoginPageState extends State<LoginPage> {
                 ),
 
                 const SizedBox(height: 35),
-
+                //Aqui se define el boton para iniciar sesión con Google,
+                //si el usuario ya ha iniciado sesión con Google, se muestra un indicador de carga en
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -142,7 +150,9 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
+//Aqui se define el widget para los campos de texto, 
+//que se reutiliza para el usuario y la contraseña
+//Mas que nada estetuco para cuidar la informacion del usuario al momento de ingresarlo
   Widget _inputField(String hint, bool isPassword) {
     return TextField(
       obscureText: isPassword,
@@ -156,13 +166,16 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future<void> _signInWithGoogle() async {
+  // Aqui se define la función para iniciar sesión con Google, que maneja la autenticación y la navegación a la pantalla principal 
+  //si el inicio de sesión es exitoso
+  Future<void> _signInWithGoogle() async { //Se establece el estado de carga para mostrar el indicador de carga mientras se realiza la autenticación
     setState(() {
       _isLoading = true;
     });
-
+    //Se intenta iniciar sesión con Google, si el usuario cancela el inicio de sesión o si ocurre un error, se captura y se muestra un mensaje de error
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn(); //el await se utiliza para esperar a que el usuario complete el proceso de inicio de sesión con Google. 
+      //Si el usuario cancela el inicio de sesión, googleUser será null, y se maneja ese caso para evitar errores.
       if (googleUser == null) {
         setState(() {
           _isLoading = false;
@@ -170,29 +183,30 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
+      //Si el inicio de sesión es exitoso, se obtiene la autenticación de Google y se utiliza para iniciar sesión con Firebase
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-
+      //Se inicia sesión con Firebase utilizando las credenciales de Google
       await _auth.signInWithCredential(credential);
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => MainPage()),
-        );
+    
+    //Si el inicio de sesión es exitoso, se navega a la pantalla principal
+      if (mounted) { //el mounted verifica que la pantalla existe dentro de la app
+        Navigator.pushReplacement( //Se navega a la pantalla principal si el inicio de sesión es exitoso 
+          context,MaterialPageRoute(builder: (_) => MainPage()),
+          );
       }
-    } catch (e) {
+    } catch (e) { //Si un error ocurre lo captura
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
-    } finally {
-      setState(() {
+    } finally { //Para asegurarse de que el indicador de carga se oculte después de intentar iniciar sesión, independientemente del resultado
+      setState(() { //esto sirve para actualizar el estado de la pantalla y ocultar el indicador de carga
         _isLoading = false;
       });
     }

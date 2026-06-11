@@ -34,10 +34,15 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   
+  #Se agregan en el .yaml porque el yaml es el archivo de configuración de la aplicación, 
+  #donde se especifican las dependencias que la aplicación necesita para funcionar. 
+  #Al agregar las dependencias de firebase en el pubspec.yaml, se asegura que estas estén disponibles 
+  #para ser utilizadas en el código de la aplicación.
   cupertino_icons: ^1.0.8
-  firebase_core: ^3.0.0
-  firebase_auth: ^5.0.0
-  google_sign_in: ^6.0.0
+  #Se agregan las dependencias de firebase para la autenticacion con google y el inicio de sesion con correo y contraseña
+  firebase_core: ^3.0.0  # esto es necesario para inicializar Firebase en tu aplicación
+  firebase_auth: ^5.0.0  # esto es necesario para la autenticación con Firebase aunque no se use directamente para el inicio de sesión con correo y contraseña, es necesario para la autenticación con Google
+  google_sign_in: ^6.0.0 # esto es necesario para la autenticación con Google
 
 dev_dependencies:
   flutter_test:

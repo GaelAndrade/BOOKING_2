@@ -1,9 +1,11 @@
+//el build grade sirve para que se convierta en una aplicacion de android real y para que se construya
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services") // <- Agregado
+    id("com.google.gms.google-services") // Esto es para que se pueda reconocer las lineas de codigo de google
 }
 
 
