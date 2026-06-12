@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart'; 
+import '../controllers/user_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import 'registro_page.dart';
@@ -14,24 +13,32 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState(); //
 }
 
-
 class _LoginPageState extends State<LoginPage> {
-  //Se inicializan las variables necesarias para la autenticación con Google
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
-  //Aqui definos el widget de la imagen 
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: AppBackground(
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const SizedBox(height: 40),
                 const CircleAvatar(
                   radius: 70,
                   backgroundColor: Colors.black26,
@@ -51,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 25),
 
-                //Aqui se definen los campos de texto para el usuario y la contraseña, 
+                //Aqui se definen los campos de texto para el usuario y la contraseña,
                 //asi como el boton de aceptar que navega a la pantalla principal
                 Container(
                   padding: const EdgeInsets.all(18),
@@ -62,25 +69,43 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: Column(
                     children: [
-                      _inputField('Usuario', false),
+                      _inputField(
+                        'Correo',
+                        false,
+                        controller: _emailController,
+                      ),
                       const SizedBox(height: 16),
-                      _inputField('Contraseña', true),
+                      _inputField(
+                        'Contraseña',
+                        _obscurePassword,
+                        controller: _passwordController,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
                       const SizedBox(height: 16),
 
-                      // Botón Aceptar que navega a MainPage
                       SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pushReplacement( //Se navega a la pantalla principal al presionar el boton de aceptar
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MainPage(), //Se quita el const para permitir la navegación
-                              ),
-                            );
-                          },
-                          child: const Text('Aceptar'),
+                          onPressed: _isLoading ? null : _signInWithCredentials,
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Colors.white,
+                                  ),
+                                )
+                              : const Text('Iniciar sesión'),
                         ),
                       ),
                     ],
@@ -89,10 +114,11 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 30),
 
-                //Aqui se muestra un mensaje para los usuarios que no tienen cuenta, 
+                //Aqui se muestra un mensaje para los usuarios que no tienen cuenta,
                 //con un enlace para registrarse
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center, //Aqui centramos el texto y el enlace
+                  mainAxisAlignment: MainAxisAlignment
+                      .center, //Aqui centramos el texto y el enlace
                   children: [
                     const Text(
                       '¿No tienes cuenta? ',
@@ -102,16 +128,19 @@ class _LoginPageState extends State<LoginPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    GestureDetector( //El GestureDetector se encarga de detectar el toque en el texto "Regístrate" para navegar a la pantalla de registro
+                    GestureDetector(
+                      //El GestureDetector se encarga de detectar el toque en el texto "Regístrate" para navegar a la pantalla de registro
                       onTap: () {
-                        Navigator.push( //Se navega a la pantalla de registro al hacer clic en "Regístrate"
+                        Navigator.push(
+                          //Se navega a la pantalla de registro al hacer clic en "Regístrate"
                           context,
                           MaterialPageRoute(
                             builder: (_) => const RegistroPage(),
                           ),
                         );
                       },
-                      child: const Text( //El boton viene siendo el texto resaltado en color amarillo y no un boton como tal
+                      child: const Text(
+                        //El boton viene siendo el texto resaltado en color amarillo y no un boton como tal
                         'Regístrate',
                         style: TextStyle(
                           color: Colors.amber,
@@ -126,6 +155,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 35),
                 //Aqui se define el boton para iniciar sesión con Google,
                 //si el usuario ya ha iniciado sesión con Google, se muestra un indicador de carga en
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -150,65 +180,111 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-//Aqui se define el widget para los campos de texto, 
-//que se reutiliza para el usuario y la contraseña
-//Mas que nada estetuco para cuidar la informacion del usuario al momento de ingresarlo
-  Widget _inputField(String hint, bool isPassword) {
+
+  //Aqui se define el widget para los campos de texto,
+  //que se reutiliza para el usuario y la contraseña
+  //Mas que nada estetuco para cuidar la informacion del usuario al momento de ingresarlo
+  Widget _inputField(
+    String hint,
+    bool isPassword, {
+    required TextEditingController controller,
+    Widget? suffixIcon,
+  }) {
     return TextField(
+      controller: controller,
       obscureText: isPassword,
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,
         hintText: hint,
         contentPadding: const EdgeInsets.symmetric(horizontal: 18),
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
       ),
     );
   }
 
-  // Aqui se define la función para iniciar sesión con Google, que maneja la autenticación y la navegación a la pantalla principal 
-  //si el inicio de sesión es exitoso
-  Future<void> _signInWithGoogle() async { //Se establece el estado de carga para mostrar el indicador de carga mientras se realiza la autenticación
+  Future<void> _signInWithCredentials() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresa correo y contraseña.')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
-    //Se intenta iniciar sesión con Google, si el usuario cancela el inicio de sesión o si ocurre un error, se captura y se muestra un mensaje de error
+
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn(); //el await se utiliza para esperar a que el usuario complete el proceso de inicio de sesión con Google. 
-      //Si el usuario cancela el inicio de sesión, googleUser será null, y se maneja ese caso para evitar errores.
-      if (googleUser == null) {
+      final success = await UserController.instance.signInWithEmailPassword(
+        email,
+        password,
+      );
+      if (!mounted) return;
+
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+
+      if (success) {
+        navigator.pushReplacement(
+          MaterialPageRoute(builder: (_) => MainPage()),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Usuario o contraseña incorrectos.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        return;
       }
+    }
+  }
 
-      //Si el inicio de sesión es exitoso, se obtiene la autenticación de Google y se utiliza para iniciar sesión con Firebase
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      //Se inicia sesión con Firebase utilizando las credenciales de Google
-      await _auth.signInWithCredential(credential);
-    
-    //Si el inicio de sesión es exitoso, se navega a la pantalla principal
-      if (mounted) { //el mounted verifica que la pantalla existe dentro de la app
-        Navigator.pushReplacement( //Se navega a la pantalla principal si el inicio de sesión es exitoso 
-          context,MaterialPageRoute(builder: (_) => MainPage()),
-          );
+  // Llama al UserController para iniciar sesión con Google y persistir el usuario.
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await UserController.instance.signInWithGoogle();
+      if (!mounted) return;
+
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+
+      if (success) {
+        navigator.pushReplacement(
+          MaterialPageRoute(builder: (_) => MainPage()),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Inicio de sesión cancelado o fallido.'),
+          ),
+        );
       }
-    } catch (e) { //Si un error ocurre lo captura
+    } catch (e) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() {
+          _isLoading = false;
+        });
       }
-    } finally { //Para asegurarse de que el indicador de carga se oculte después de intentar iniciar sesión, independientemente del resultado
-      setState(() { //esto sirve para actualizar el estado de la pantalla y ocultar el indicador de carga
-        _isLoading = false;
-      });
     }
   }
 }

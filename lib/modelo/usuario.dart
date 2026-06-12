@@ -3,6 +3,7 @@ class Usuario {
   String? googleUid;
   String nombre;
   String email;
+  String? password;
   String? fotoUrl;
   int createdAt;
 
@@ -11,6 +12,7 @@ class Usuario {
     this.googleUid,
     required this.nombre,
     required this.email,
+    this.password,
     this.fotoUrl,
     required this.createdAt,
   });
@@ -21,6 +23,7 @@ class Usuario {
       'google_uid': googleUid,
       'nombre': nombre,
       'email': email,
+      'password': password,
       'foto_url': fotoUrl,
       'created_at': createdAt,
     };
@@ -32,6 +35,7 @@ class Usuario {
       googleUid: map['google_uid'] as String?,
       nombre: map['nombre'] as String,
       email: map['email'] as String,
+      password: map['password'] as String?,
       fotoUrl: map['foto_url'] as String?,
       createdAt: map['created_at'] as int,
     );

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../controllers/user_controller.dart';
 import '../data/app_database.dart';
 import '../modelo/reservacion.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
+import 'reservacion_page.dart';
 
 class ReservacionesPage extends StatefulWidget {
   const ReservacionesPage({super.key});
@@ -23,9 +25,13 @@ class _ReservacionesPageState extends State<ReservacionesPage> {
   }
 
   Future<void> _cargarReservaciones() async {
-    final reservas = await AppDatabase.instance.getAllReservaciones();
+    final usuarioId = await UserController.instance.ensureCurrentUserId();
+    final reservas = usuarioId != null
+        ? await AppDatabase.instance.getReservacionesPorUsuario(usuarioId)
+        : <Reservacion>[];
     final hoteles = await AppDatabase.instance.getAllHotels();
 
+    if (!mounted) return;
     setState(() {
       _reservaciones = reservas;
       _hotelNombres = {
@@ -91,6 +97,58 @@ class _ReservacionesPageState extends State<ReservacionesPage> {
                           ),
                           const SizedBox(height: 8),
                           Text('Estado: ${reserva.estado}'),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  final navigator = Navigator.of(context);
+                                  final hotel = await AppDatabase.instance
+                                      .getHotelPorId(reserva.hotelId);
+                                  if (hotel == null || hotel.id == null) {
+                                    return;
+                                  }
+                                  final habitacion = await AppDatabase.instance
+                                      .getHabitacionPorHotelYNombre(
+                                        reserva.hotelId,
+                                        reserva.habitacionNombre,
+                                      );
+                                  if (!mounted) return;
+                                  if (habitacion == null) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'No se encontró la habitación para editar.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  if (!mounted) return;
+                                  final updated = await navigator.push<bool?>(
+                                    MaterialPageRoute(
+                                      builder: (_) => ReservacionPage(
+                                        nombreHotel: hotel.nombre,
+                                        nombreHabitacion:
+                                            reserva.habitacionNombre,
+                                        precioPorNoche: habitacion.precio,
+                                        reservacion: reserva,
+                                      ),
+                                    ),
+                                  );
+                                  if (updated == true) {
+                                    _cargarReservaciones();
+                                  }
+                                },
+                                child: const Text('Editar'),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     );

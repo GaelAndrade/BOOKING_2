@@ -1,19 +1,24 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import '../data/app_database.dart';
+import '../controllers/user_controller.dart';
 import '../modelo/reservacion.dart';
 
 class ReservacionPage extends StatefulWidget {
   final String nombreHotel;
   final String nombreHabitacion;
   final int precioPorNoche;
+  final Reservacion? reservacion;
 
   const ReservacionPage({
     super.key,
     required this.nombreHotel,
     required this.nombreHabitacion,
     required this.precioPorNoche,
+    this.reservacion,
   });
 
   @override
@@ -29,6 +34,9 @@ class _ReservacionPageState extends State<ReservacionPage> {
   String numeroTarjeta = '';
   String expiracion = '';
   String cvv = '';
+  final TextEditingController _expiracionController = TextEditingController();
+
+  bool get isEditing => widget.reservacion != null;
 
   int get numeroNoches {
     if (fechaEntrada == null || fechaSalida == null) return 0;
@@ -56,6 +64,48 @@ class _ReservacionPageState extends State<ReservacionPage> {
         }
       });
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (isEditing) {
+      fechaEntrada = DateTime.fromMillisecondsSinceEpoch(
+        widget.reservacion!.fechaEntrada,
+      );
+      fechaSalida = DateTime.fromMillisecondsSinceEpoch(
+        widget.reservacion!.fechaSalida,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _expiracionController.dispose();
+    super.dispose();
+  }
+
+  String _formatExpiration(String input) {
+    final digits = input.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+    final month = digits.substring(0, min(2, digits.length));
+    final year = digits.length > 2
+        ? digits.substring(2, min(4, digits.length))
+        : '';
+    return year.isEmpty ? month : '$month/$year';
+  }
+
+  void _onExpiracionChanged(String value) {
+    final formatted = _formatExpiration(value);
+    if (formatted != value) {
+      _expiracionController.value = TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
+    setState(() {
+      expiracion = formatted;
+    });
   }
 
   Future<void> _seleccionarFechaSalida() async {
@@ -102,12 +152,15 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
     // Se busca el hotel en la base de datos usando el nombre que se recibe desde la página de habitaciones.
     final hotel = await AppDatabase.instance.getHotelPorNombre(
       widget.nombreHotel,
     );
     if (hotel == null || hotel.id == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('No se encontró el hotel en la base de datos.'),
         ),
@@ -115,30 +168,49 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
-    // Insertar la reservación en SQLite.
-    final nuevaReservacion = Reservacion(
-      usuarioId:
-          1, // Usuario local temporal hasta que se integre autenticación.
+    // Obtener/asegurar usuario actual y luego insertar la reservación en SQLite.
+    final usuarioId = await UserController.instance.ensureCurrentUserId();
+    if (usuarioId == null) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Inicia sesión antes de reservar.')),
+      );
+      return;
+    }
+
+    final reservacion = Reservacion(
+      id: widget.reservacion?.id,
+      usuarioId: usuarioId,
       hotelId: hotel.id!,
       habitacionNombre: widget.nombreHabitacion,
       fechaEntrada: fechaEntrada!.millisecondsSinceEpoch,
       fechaSalida: fechaSalida!.millisecondsSinceEpoch,
       huespedes: 1,
       total: total.toDouble(),
-      estado: 'confirmada',
-      createdAt: DateTime.now().millisecondsSinceEpoch,
+      estado: widget.reservacion?.estado ?? 'confirmada',
+      createdAt:
+          widget.reservacion?.createdAt ??
+          DateTime.now().millisecondsSinceEpoch,
     );
 
-    await AppDatabase.instance.insertReservacion(nuevaReservacion);
+    if (isEditing) {
+      await AppDatabase.instance.updateReservacion(reservacion);
+    } else {
+      await AppDatabase.instance.insertReservacion(reservacion);
+    }
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reservación guardada en la base de datos.'),
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          isEditing
+              ? 'Reservación actualizada.'
+              : 'Reservación guardada en la base de datos.',
+        ),
       ),
     );
-    Navigator.pop(context);
+    navigator.pop(true);
   }
 
   @override
@@ -272,21 +344,19 @@ class _ReservacionPageState extends State<ReservacionPage> {
                       children: [
                         Expanded(
                           child: TextField(
+                            controller: _expiracionController,
                             decoration: InputDecoration(
                               labelText: 'MM/AA',
+                              hintText: 'MM/AA',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               filled: true,
                               fillColor: Colors.white,
                             ),
-                            keyboardType: TextInputType.datetime,
+                            keyboardType: TextInputType.number,
                             maxLength: 5,
-                            onChanged: (value) {
-                              setState(() {
-                                expiracion = value;
-                              });
-                            },
+                            onChanged: _onExpiracionChanged,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -319,9 +389,11 @@ class _ReservacionPageState extends State<ReservacionPage> {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: _confirmarReservacion,
-                        child: const Text(
-                          'Confirmar reservación',
-                          style: TextStyle(fontSize: 18),
+                        child: Text(
+                          isEditing
+                              ? 'Actualizar reservación'
+                              : 'Confirmar reservación',
+                          style: const TextStyle(fontSize: 18),
                         ),
                       ),
                     ),

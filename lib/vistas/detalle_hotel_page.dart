@@ -1,32 +1,14 @@
 import 'package:flutter/material.dart';
+import '../modelo/hotel.dart';
+import '../modelo/servicio_hotel.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
 import 'habitaciones_page.dart';
 
-class ServicioHotel {
-  final IconData icono;
-  final String texto;
-
-  const ServicioHotel({required this.icono, required this.texto});
-}
-
 class DetalleHotelPage extends StatefulWidget {
-  final String nombre;
-  final String direccion;
-  final String imagen;
-  final int estrellas;
-  final String descripcion;
-  final List<ServicioHotel> servicios;
+  final Hotel hotel;
 
-  const DetalleHotelPage({
-    super.key,
-    required this.nombre,
-    required this.direccion,
-    required this.imagen,
-    required this.estrellas,
-    required this.descripcion,
-    required this.servicios,
-  });
+  const DetalleHotelPage({super.key, required this.hotel});
 
   @override
   State<DetalleHotelPage> createState() => _DetalleHotelPageState();
@@ -35,26 +17,27 @@ class DetalleHotelPage extends StatefulWidget {
 class _DetalleHotelPageState extends State<DetalleHotelPage> {
   int imagenActual = 0;
 
-  late final List<String> imagenesHotel = _obtenerImagenesHotel(widget.nombre);
+  late final List<String> imagenesHotel = _obtenerImagenesHotel(
+    widget.hotel.nombre,
+  );
 
   List<String> _obtenerImagenesHotel(String hotel) {
     switch (hotel) {
       case 'Hotel Salinas':
         return [
-          'lib/imagenes/salinas_1.jpg', //ya estan todas
+          'lib/imagenes/salinas_1.jpg',
           'lib/imagenes/salinas_2.jpg',
           'lib/imagenes/salinas_3.jpg',
         ];
-
       case 'Poza Rica Inn':
         return [
-          'lib/imagenes/poza_rica_inn_1.jpg', //Ya esta
-          'lib/imagenes/poza_rica_inn_2.jpg', //ya esta
-          'lib/imagenes/poza_rica_inn_3.jpg', //ya esta
+          'lib/imagenes/poza_rica_inn_1.jpg',
+          'lib/imagenes/poza_rica_inn_2.jpg',
+          'lib/imagenes/poza_rica_inn_3.jpg',
         ];
       case 'La Quinta':
         return [
-          'lib/imagenes/la_quinta_1.jpg', //ya esta todo
+          'lib/imagenes/la_quinta_1.jpg',
           'lib/imagenes/la_quinta_2.jpg',
           'lib/imagenes/la_quinta_3.jpg',
         ];
@@ -71,7 +54,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
           'lib/imagenes/victoria_3.jpg',
         ];
       default:
-        return [widget.imagen];
+        return [widget.hotel.imagenUrl ?? 'lib/imagenes/hotel_salinas.jpg'];
     }
   }
 
@@ -91,7 +74,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                   ),
                   Expanded(
                     child: Text(
-                      widget.nombre,
+                      widget.hotel.nombre,
                       style: const TextStyle(
                         color: AppColors.white,
                         fontSize: 24,
@@ -159,7 +142,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.nombre,
+                      widget.hotel.nombre,
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -172,7 +155,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                       children: List.generate(
                         5,
                         (index) => Icon(
-                          index < widget.estrellas
+                          index < widget.hotel.calificacion.toInt()
                               ? Icons.star
                               : Icons.star_border,
                           color: Colors.amber,
@@ -192,7 +175,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            widget.direccion,
+                            widget.hotel.direccion ?? widget.hotel.ciudad,
                             style: const TextStyle(fontSize: 16),
                           ),
                         ),
@@ -212,7 +195,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                     const SizedBox(height: 8),
 
                     Text(
-                      widget.descripcion,
+                      widget.hotel.descripcion ?? '',
                       style: const TextStyle(fontSize: 16),
                     ),
 
@@ -231,7 +214,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                     Wrap(
                       spacing: 12,
                       runSpacing: 12,
-                      children: widget.servicios
+                      children: _hotelServices(widget.hotel.nombre)
                           .map(
                             (servicio) => _ServicioItem(
                               icono: servicio.icono,
@@ -252,7 +235,7 @@ class _DetalleHotelPageState extends State<DetalleHotelPage> {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  HabitacionesPage(nombreHotel: widget.nombre),
+                                  HabitacionesPage(hotel: widget.hotel),
                             ),
                           );
                         },
@@ -303,5 +286,48 @@ class _ServicioItem extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+List<ServicioHotel> _hotelServices(String nombre) {
+  switch (nombre) {
+    case 'Hotel Salinas':
+      return const [
+        ServicioHotel(icono: Icons.pool, texto: 'Alberca'),
+        ServicioHotel(icono: Icons.wifi, texto: 'Wifi gratis'),
+        ServicioHotel(icono: Icons.restaurant, texto: 'Restaurante'),
+        ServicioHotel(icono: Icons.local_parking, texto: 'Estacionamiento'),
+      ];
+    case 'Poza Rica Inn':
+      return const [
+        ServicioHotel(icono: Icons.wifi, texto: 'Wifi gratis'),
+        ServicioHotel(icono: Icons.pool, texto: 'Alberca'),
+        ServicioHotel(icono: Icons.fitness_center, texto: 'Gimnasio'),
+        ServicioHotel(icono: Icons.restaurant_menu, texto: 'Desayuno'),
+        ServicioHotel(icono: Icons.meeting_room, texto: 'Salones'),
+      ];
+    case 'La Quinta':
+      return const [
+        ServicioHotel(icono: Icons.wifi, texto: 'Wifi gratis'),
+        ServicioHotel(icono: Icons.local_parking, texto: 'Estacionamiento'),
+        ServicioHotel(icono: Icons.ac_unit, texto: 'Aire acondicionado'),
+        ServicioHotel(icono: Icons.room_service, texto: 'Servicio a cuarto'),
+      ];
+    case 'Hotel Paris':
+      return const [
+        ServicioHotel(icono: Icons.wifi, texto: 'Wifi gratis'),
+        ServicioHotel(icono: Icons.tv, texto: 'Televisión'),
+        ServicioHotel(icono: Icons.bed, texto: 'Habitaciones cómodas'),
+        ServicioHotel(icono: Icons.local_cafe, texto: 'Cafetería'),
+      ];
+    case 'Hotel Victoria':
+      return const [
+        ServicioHotel(icono: Icons.wifi, texto: 'Wifi gratis'),
+        ServicioHotel(icono: Icons.local_parking, texto: 'Estacionamiento'),
+        ServicioHotel(icono: Icons.restaurant, texto: 'Restaurante'),
+        ServicioHotel(icono: Icons.security, texto: 'Seguridad'),
+      ];
+    default:
+      return const [ServicioHotel(icono: Icons.wifi, texto: 'Wifi gratis')];
   }
 }

@@ -28,7 +28,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 4,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -67,6 +67,12 @@ class AppDatabase {
       );
       await _insertarHabitacionesIniciales(db);
     }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE usuarios ADD COLUMN password TEXT');
+    }
+    if (oldVersion < 4) {
+      await _normalizarDatosIniciales(db);
+    }
   }
 
   Future<void> _createDatabase(Database db, int version) async {
@@ -76,6 +82,7 @@ class AppDatabase {
         google_uid TEXT,
         nombre TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
+        password TEXT,
         foto_url TEXT,
         created_at INTEGER NOT NULL
       )
@@ -128,6 +135,13 @@ class AppDatabase {
 
     await db.execute(
       'CREATE INDEX idx_habitaciones_hotel ON habitaciones(hotel_id)',
+    );
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_hoteles_nombre_unique ON hoteles(nombre)',
+    );
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_habitaciones_hotel_nombre_unique '
+      'ON habitaciones(hotel_id, nombre)',
     );
     await db.execute(
       'CREATE INDEX idx_reservaciones_usuario ON reservaciones(usuario_id)',
@@ -184,26 +198,27 @@ class AppDatabase {
         'calificacion': 4.0,
       },
       {
-        'nombre': 'Hotel Paraíso',
-        'ciudad': 'Cancún',
-        'direccion': 'Zona hotelera',
-        'descripcion': 'Hotel frente al mar con alberca y restaurante.',
-        'precio_noche': 1800.0,
+        'nombre': 'Poza Rica Inn',
+        'ciudad': 'Poza Rica',
+        'direccion': 'Blvd. Adolfo Ruiz Cortines',
+        'descripcion':
+            'Poza Rica Inn está orientado a huéspedes que buscan comodidad, buena ubicación y servicios completos. Es adecuado para estancias ejecutivas, eventos y visitas prolongadas.',
+        'precio_noche': 1700.0,
         'imagen_url': '',
-        'calificacion': 4.5,
-      },
-      {
-        'nombre': 'Hotel Centro',
-        'ciudad': 'Ciudad de México',
-        'direccion': 'Centro histórico',
-        'descripcion': 'Hotel cómodo cerca de zonas turísticas.',
-        'precio_noche': 950.0,
-        'imagen_url': '',
-        'calificacion': 4.2,
+        'calificacion': 5.0,
       },
     ];
 
     for (final hotelData in hotelesIniciales) {
+      final existente = await db.query(
+        'hoteles',
+        columns: ['id'],
+        where: 'nombre = ?',
+        whereArgs: [hotelData['nombre']],
+        limit: 1,
+      );
+      if (existente.isNotEmpty) continue;
+
       await db.insert('hoteles', {
         ...hotelData,
         'created_at': now,
@@ -290,6 +305,22 @@ class AppDatabase {
         'precio': 1450,
         'imagen_url': 'lib/imagenes/victoria_familiar.jpg',
       },
+      {
+        'hotel_nombre': 'Poza Rica Inn',
+        'nombre': 'Habitación ejecutiva',
+        'descripcion':
+            'Diseñada para viajes de trabajo, cuenta con escritorio, cama king size y ambiente cómodo.',
+        'precio': 1900,
+        'imagen_url': 'lib/imagenes/poza_ejec.jpg',
+      },
+      {
+        'hotel_nombre': 'Poza Rica Inn',
+        'nombre': 'Suite premium',
+        'descripcion':
+            'Suite amplia con cama king size, zona de estar, servicio a la habitación y acceso a gimnasio.',
+        'precio': 2600,
+        'imagen_url': 'lib/imagenes/poza_suite.jpg',
+      },
     ];
 
     for (final habitacionData in habitacionesIniciales) {
@@ -297,10 +328,21 @@ class AppDatabase {
         'hoteles',
         where: 'nombre = ?',
         whereArgs: [habitacionData['hotel_nombre']],
+        orderBy: 'id ASC',
         limit: 1,
       );
       if (hotelMaps.isEmpty) continue;
       final hotelId = hotelMaps.first['id'] as int;
+
+      final existente = await db.query(
+        'habitaciones',
+        columns: ['id'],
+        where: 'hotel_id = ? AND nombre = ?',
+        whereArgs: [hotelId, habitacionData['nombre']],
+        limit: 1,
+      );
+      if (existente.isNotEmpty) continue;
+
       await db.insert('habitaciones', {
         'hotel_id': hotelId,
         'nombre': habitacionData['nombre'],
@@ -310,6 +352,72 @@ class AppDatabase {
         'created_at': now,
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
+  }
+
+  Future<void> _normalizarDatosIniciales(Database db) async {
+    final hoteles = await db.rawQuery('''
+      SELECT nombre, MIN(id) AS id_principal
+      FROM hoteles
+      GROUP BY nombre
+      HAVING COUNT(*) > 1
+    ''');
+
+    for (final hotel in hoteles) {
+      final nombre = hotel['nombre'] as String;
+      final idPrincipal = hotel['id_principal'] as int;
+
+      final duplicados = await db.query(
+        'hoteles',
+        columns: ['id'],
+        where: 'nombre = ? AND id <> ?',
+        whereArgs: [nombre, idPrincipal],
+      );
+
+      for (final duplicado in duplicados) {
+        final idDuplicado = duplicado['id'] as int;
+        await db.update(
+          'habitaciones',
+          {'hotel_id': idPrincipal},
+          where: 'hotel_id = ?',
+          whereArgs: [idDuplicado],
+        );
+        await db.update(
+          'reservaciones',
+          {'hotel_id': idPrincipal},
+          where: 'hotel_id = ?',
+          whereArgs: [idDuplicado],
+        );
+        await db.delete('hoteles', where: 'id = ?', whereArgs: [idDuplicado]);
+      }
+    }
+
+    final habitaciones = await db.rawQuery('''
+      SELECT hotel_id, nombre, MIN(id) AS id_principal
+      FROM habitaciones
+      GROUP BY hotel_id, nombre
+      HAVING COUNT(*) > 1
+    ''');
+
+    for (final habitacion in habitaciones) {
+      await db.delete(
+        'habitaciones',
+        where: 'hotel_id = ? AND nombre = ? AND id <> ?',
+        whereArgs: [
+          habitacion['hotel_id'],
+          habitacion['nombre'],
+          habitacion['id_principal'],
+        ],
+      );
+    }
+
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_hoteles_nombre_unique '
+      'ON hoteles(nombre)',
+    );
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_habitaciones_hotel_nombre_unique '
+      'ON habitaciones(hotel_id, nombre)',
+    );
   }
 
   Future<Hotel?> getHotelPorNombre(String nombre) async {
@@ -357,6 +465,31 @@ class AppDatabase {
     return Usuario.fromMap(maps.first);
   }
 
+  Future<Usuario?> getUsuarioPorEmailYPassword(
+    String email,
+    String password,
+  ) async {
+    final db = await database;
+    final maps = await db.query(
+      'usuarios',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return Usuario.fromMap(maps.first);
+  }
+
+  Future<int> updateUsuario(Usuario usuario) async {
+    final db = await database;
+    return await db.update(
+      'usuarios',
+      usuario.toMap(),
+      where: 'id = ?',
+      whereArgs: [usuario.id],
+    );
+  }
+
   Future<List<Usuario>> getAllUsuarios() async {
     final db = await database;
     final maps = await db.query('usuarios');
@@ -386,13 +519,28 @@ class AppDatabase {
 
   Future<List<Hotel>> getAllHotels() async {
     final db = await database;
-    final maps = await db.query('hoteles');
+    final maps = await db.query('hoteles', orderBy: 'id ASC');
     return maps.map((row) => Hotel.fromMap(row)).toList();
   }
 
   Future<int> insertHabitacion(Habitacion habitacion) async {
     final db = await database;
     return await db.insert('habitaciones', habitacion.toMap());
+  }
+
+  Future<Habitacion?> getHabitacionPorHotelYNombre(
+    int hotelId,
+    String nombre,
+  ) async {
+    final db = await database;
+    final maps = await db.query(
+      'habitaciones',
+      where: 'hotel_id = ? AND nombre = ?',
+      whereArgs: [hotelId, nombre],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return Habitacion.fromMap(maps.first);
   }
 
   Future<List<Habitacion>> getHabitacionesPorHotel(int hotelId) async {
