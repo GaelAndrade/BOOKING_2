@@ -13,6 +13,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int currentIndex = 0;
+  int previousIndex = 0;
 
   final pages = [
     const HomePage(),
@@ -23,11 +24,33 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: pages[currentIndex],
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final direction = currentIndex >= previousIndex ? 1.0 : -1.0;
+          final offsetAnimation = Tween<Offset>(
+            begin: Offset(0.05 * direction, 0),
+            end: Offset.zero,
+          ).animate(animation);
+
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: offsetAnimation, child: child),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<int>(currentIndex),
+          child: pages[currentIndex],
+        ),
+      ),
       bottomNavigationBar: CustomNavbar(
         currentIndex: currentIndex,
         onTap: (index) {
+          if (index == currentIndex) return;
           setState(() {
+            previousIndex = currentIndex;
             currentIndex = index;
           });
         },

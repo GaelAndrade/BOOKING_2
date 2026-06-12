@@ -35,11 +35,10 @@ class _PerfilPageState extends State<PerfilPage> {
     await UserController.instance.ensureCurrentUserId();
     final user = UserController.instance.currentUser;
     if (!mounted) return;
-    _nombreController.text = user?.nombre ?? '';
-    _emailController.text = user?.email ?? '';
-    if (mounted) {
-      setState(() {});
-    }
+    setState(() {
+      _nombreController.text = user?.nombre ?? '';
+      _emailController.text = user?.email ?? '';
+    });
   }
 
   @override
@@ -50,99 +49,158 @@ class _PerfilPageState extends State<PerfilPage> {
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Perfil',
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+            children: [
+              const Text(
+                'Perfil',
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 34,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _nombreController,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    labelText: 'Nombre',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    labelText: 'Correo',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    labelText: isGoogleUser
-                        ? 'Contraseña (no aplicable para Google)'
-                        : 'Nueva contraseña',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  enabled: !isGoogleUser,
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveProfile,
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
+              ),
+              const SizedBox(height: 28),
+              _profileField(
+                label: 'Nombre',
+                controller: _nombreController,
+                icon: Icons.person_outline,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 18),
+              _profileField(
+                label: 'Correo',
+                controller: _emailController,
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 18),
+              _profileField(
+                label: isGoogleUser
+                    ? 'Contraseña no aplicable para Google'
+                    : 'Nueva contraseña',
+                controller: _passwordController,
+                icon: Icons.lock_outline,
+                obscureText: true,
+                enabled: !isGoogleUser,
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
                             valueColor: AlwaysStoppedAnimation(Colors.white),
-                          )
-                        : const Text(
-                            'Guardar cambios',
-                            style: TextStyle(fontSize: 18),
                           ),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text(
+                    'Guardar cambios',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final navigator = Navigator.of(context);
-                      await UserController.instance.signOut();
-                      if (!mounted) return;
-                      navigator.pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginPage()),
-                      );
-                    },
-                    child: const Text(
-                      'Cerrar sesión',
-                      style: TextStyle(fontSize: 18),
-                    ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _signOut,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD32F2F),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.logout),
+                  label: const Text(
+                    'Cerrar sesión',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _profileField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    bool obscureText = false,
+    bool enabled = true,
+    TextInputType? keyboardType,
+    TextInputAction? textInputAction,
+  }) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide(
+        color: enabled ? Colors.black26 : Colors.black12,
+        width: 1.3,
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        TextField(
+          controller: controller,
+          enabled: enabled,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          style: TextStyle(
+            color: enabled ? AppColors.darkBlue : Colors.black54,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: enabled ? Colors.white : const Color(0xFFF1F3F5),
+            prefixIcon: Icon(icon, color: AppColors.darkBlue),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 18,
+            ),
+            enabledBorder: border,
+            disabledBorder: border,
+            focusedBorder: border.copyWith(
+              borderSide: const BorderSide(
+                color: AppColors.lightBlue,
+                width: 2,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _signOut() async {
+    final navigator = Navigator.of(context);
+    await UserController.instance.signOut();
+    if (!mounted) return;
+    navigator.pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
     );
   }
 

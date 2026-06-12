@@ -1,11 +1,11 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../controllers/reservacion_controller.dart';
+import '../modelo/reservacion.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_background.dart';
-import '../data/app_database.dart';
-import '../controllers/user_controller.dart';
-import '../modelo/reservacion.dart';
 
 class ReservacionPage extends StatefulWidget {
   final String nombreHotel;
@@ -29,7 +29,6 @@ class _ReservacionPageState extends State<ReservacionPage> {
   DateTime? fechaEntrada;
   DateTime? fechaSalida;
 
-  // Variables para tarjeta
   String nombreTitular = '';
   String numeroTarjeta = '';
   String expiracion = '';
@@ -44,8 +43,25 @@ class _ReservacionPageState extends State<ReservacionPage> {
     return diferencia > 0 ? diferencia : 0;
   }
 
-  int get total {
-    return numeroNoches * widget.precioPorNoche;
+  int get total => numeroNoches * widget.precioPorNoche;
+
+  @override
+  void initState() {
+    super.initState();
+    if (isEditing) {
+      fechaEntrada = DateTime.fromMillisecondsSinceEpoch(
+        widget.reservacion!.fechaEntrada,
+      );
+      fechaSalida = DateTime.fromMillisecondsSinceEpoch(
+        widget.reservacion!.fechaSalida,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _expiracionController.dispose();
+    super.dispose();
   }
 
   Future<void> _seleccionarFechaEntrada() async {
@@ -66,23 +82,23 @@ class _ReservacionPageState extends State<ReservacionPage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    if (isEditing) {
-      fechaEntrada = DateTime.fromMillisecondsSinceEpoch(
-        widget.reservacion!.fechaEntrada,
-      );
-      fechaSalida = DateTime.fromMillisecondsSinceEpoch(
-        widget.reservacion!.fechaSalida,
-      );
-    }
-  }
+  Future<void> _seleccionarFechaSalida() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate:
+          fechaEntrada?.add(const Duration(days: 1)) ??
+          DateTime.now().add(const Duration(days: 1)),
+      firstDate:
+          fechaEntrada?.add(const Duration(days: 1)) ??
+          DateTime.now().add(const Duration(days: 1)),
+      lastDate: DateTime(2030),
+    );
 
-  @override
-  void dispose() {
-    _expiracionController.dispose();
-    super.dispose();
+    if (fecha != null) {
+      setState(() {
+        fechaSalida = fecha;
+      });
+    }
   }
 
   String _formatExpiration(String input) {
@@ -108,23 +124,29 @@ class _ReservacionPageState extends State<ReservacionPage> {
     });
   }
 
-  Future<void> _seleccionarFechaSalida() async {
-    final fecha = await showDatePicker(
-      context: context,
-      initialDate:
-          fechaEntrada?.add(const Duration(days: 1)) ??
-          DateTime.now().add(const Duration(days: 1)),
-      firstDate:
-          fechaEntrada?.add(const Duration(days: 1)) ??
-          DateTime.now().add(const Duration(days: 1)),
-      lastDate: DateTime(2030),
-    );
+  bool _isCardNumberValid(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.length == 16;
+  }
 
-    if (fecha != null) {
-      setState(() {
-        fechaSalida = fecha;
-      });
+  bool _isExpirationValid(String value) {
+    final match = RegExp(r'^(\d{2})/(\d{2})$').firstMatch(value);
+    if (match == null) return false;
+
+    final month = int.tryParse(match.group(1)!);
+    final year = int.tryParse(match.group(2)!);
+    if (month == null || year == null || month < 1 || month > 12) {
+      return false;
     }
+
+    final now = DateTime.now();
+    final fullYear = 2000 + year;
+    final lastValidDay = DateTime(fullYear, month + 1, 0);
+    return !lastValidDay.isBefore(DateTime(now.year, now.month, now.day));
+  }
+
+  bool _isCvvValid(String value) {
+    return RegExp(r'^\d{3}$').hasMatch(value);
   }
 
   String _formatearFecha(DateTime? fecha) {
@@ -140,14 +162,34 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
-    if (nombreTitular.isEmpty ||
-        numeroTarjeta.isEmpty ||
-        expiracion.isEmpty ||
-        cvv.isEmpty) {
+    if (nombreTitular.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresa el nombre del titular.')),
+      );
+      return;
+    }
+
+    if (!_isCardNumberValid(numeroTarjeta)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Completa todos los datos de la tarjeta.'),
+          content: Text('El número de tarjeta debe tener 16 dígitos.'),
         ),
+      );
+      return;
+    }
+
+    if (!_isExpirationValid(expiracion)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingresa una fecha de expiración válida en MM/AA.'),
+        ),
+      );
+      return;
+    }
+
+    if (!_isCvvValid(cvv)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El CVV debe tener 3 dígitos.')),
       );
       return;
     }
@@ -155,8 +197,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    // Se busca el hotel en la base de datos usando el nombre que se recibe desde la página de habitaciones.
-    final hotel = await AppDatabase.instance.getHotelPorNombre(
+    final hotel = await ReservacionController.instance.getHotelPorNombre(
       widget.nombreHotel,
     );
     if (hotel == null || hotel.id == null) {
@@ -168,8 +209,8 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
-    // Obtener/asegurar usuario actual y luego insertar la reservación en SQLite.
-    final usuarioId = await UserController.instance.ensureCurrentUserId();
+    final usuarioId = await ReservacionController.instance
+        .ensureCurrentUserId();
     if (usuarioId == null) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -193,11 +234,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
           DateTime.now().millisecondsSinceEpoch,
     );
 
-    if (isEditing) {
-      await AppDatabase.instance.updateReservacion(reservacion);
-    } else {
-      await AppDatabase.instance.insertReservacion(reservacion);
-    }
+    await ReservacionController.instance.guardarReservacion(reservacion);
 
     if (!mounted) return;
 
@@ -221,157 +258,111 @@ class _ReservacionPageState extends State<ReservacionPage> {
           child: ListView(
             padding: const EdgeInsets.all(22),
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Reservación',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.inputBackground,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.black, width: 3),
-                ),
+              _Header(isEditing: isEditing),
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: 'Resumen de estancia',
+                icon: Icons.hotel_outlined,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Detalles de la reservación',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    _infoRow('Hotel', widget.nombreHotel),
-                    _infoRow('Habitación', widget.nombreHabitacion),
-                    _infoRow(
-                      'Precio por noche',
-                      '\$${widget.precioPorNoche} MXN',
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    _fechaButton(
-                      titulo: 'Fecha de entrada',
-                      valor: _formatearFecha(fechaEntrada),
-                      onPressed: _seleccionarFechaEntrada,
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    _fechaButton(
-                      titulo: 'Fecha de salida',
-                      valor: _formatearFecha(fechaSalida),
-                      onPressed: _seleccionarFechaSalida,
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    _infoRow('Número de noches', '$numeroNoches'),
-                    _infoRow('Total', '\$$total MXN'),
-
-                    const SizedBox(height: 25),
-
-                    // --- Sección para ingresar tarjeta ---
-                    const Text(
-                      'Método de pago',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                    _SummaryLine(
+                      label: 'Hotel',
+                      value: widget.nombreHotel,
+                      icon: Icons.apartment,
                     ),
                     const SizedBox(height: 12),
-
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Nombre del titular',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
+                    _SummaryLine(
+                      label: 'Habitación',
+                      value: widget.nombreHabitacion,
+                      icon: Icons.bed_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    _SummaryLine(
+                      label: 'Precio por noche',
+                      value: '\$${widget.precioPorNoche} MXN',
+                      icon: Icons.payments_outlined,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Fechas',
+                icon: Icons.calendar_month_outlined,
+                child: Column(
+                  children: [
+                    _DateButton(
+                      title: 'Entrada',
+                      value: _formatearFecha(fechaEntrada),
+                      onPressed: _seleccionarFechaEntrada,
+                    ),
+                    const SizedBox(height: 12),
+                    _DateButton(
+                      title: 'Salida',
+                      value: _formatearFecha(fechaSalida),
+                      onPressed: _seleccionarFechaSalida,
+                    ),
+                    const SizedBox(height: 16),
+                    _TotalPanel(noches: numeroNoches, total: total),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Método de pago',
+                icon: Icons.credit_card,
+                child: Column(
+                  children: [
+                    _PaymentField(
+                      label: 'Nombre del titular',
+                      icon: Icons.person_outline,
                       onChanged: (value) {
                         setState(() {
                           nombreTitular = value;
                         });
                       },
                     ),
-
                     const SizedBox(height: 12),
-
-                    TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Número de tarjeta',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
+                    _PaymentField(
+                      label: 'Número de tarjeta',
+                      icon: Icons.credit_card,
                       keyboardType: TextInputType.number,
                       maxLength: 16,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (value) {
                         setState(() {
                           numeroTarjeta = value;
                         });
                       },
                     ),
-
                     const SizedBox(height: 12),
-
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
+                          child: _PaymentField(
+                            label: 'MM/AA',
+                            icon: Icons.event_outlined,
                             controller: _expiracionController,
-                            decoration: InputDecoration(
-                              labelText: 'MM/AA',
-                              hintText: 'MM/AA',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
                             keyboardType: TextInputType.number,
                             maxLength: 5,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9/]'),
+                              ),
+                            ],
                             onChanged: _onExpiracionChanged,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: TextField(
-                            decoration: InputDecoration(
-                              labelText: 'CVV',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
+                          child: _PaymentField(
+                            label: 'CVV',
+                            icon: Icons.lock_outline,
                             keyboardType: TextInputType.number,
                             maxLength: 3,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             onChanged: (value) {
                               setState(() {
                                 cvv = value;
@@ -381,72 +372,366 @@ class _ReservacionPageState extends State<ReservacionPage> {
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 25),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _confirmarReservacion,
-                        child: Text(
-                          isEditing
-                              ? 'Actualizar reservación'
-                              : 'Confirmar reservación',
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ),
-                    ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _confirmarReservacion,
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: Text(
+                    isEditing ? 'Actualizar reservación' : 'Confirmar reserva',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
-      //bottomNavigationBar: CustomNavbar(currentIndex: 1, onTap: (index) {}),
     );
   }
+}
 
-  Widget _infoRow(String titulo, String valor) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
+class _Header extends StatelessWidget {
+  final bool isEditing;
+
+  const _Header({required this.isEditing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            isEditing ? 'Editar reserva' : 'Nueva reserva',
+            style: const TextStyle(
+              color: AppColors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.inputBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black, width: 2.4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$titulo: ',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          Row(
+            children: [
+              Icon(icon, color: AppColors.darkBlue, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF1D2530),
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
-          Expanded(child: Text(valor, style: const TextStyle(fontSize: 16))),
+          const SizedBox(height: 16),
+          child,
         ],
       ),
     );
   }
+}
 
-  Widget _fechaButton({
-    required String titulo,
-    required String valor,
-    required VoidCallback onPressed,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+class _SummaryLine extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _SummaryLine({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       children: [
-        Text(
-          titulo,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.lightBlue.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.darkBlue, size: 21),
         ),
-        const SizedBox(height: 6),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: const Icon(Icons.calendar_month),
-            label: Text(valor),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF1D2530),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DateButton extends StatelessWidget {
+  final String title;
+  final String value;
+  final VoidCallback onPressed;
+
+  const _DateButton({
+    required this.title,
+    required this.value,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(58),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        side: BorderSide(color: Colors.black.withValues(alpha: 0.42)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_month, color: AppColors.darkBlue),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppColors.darkBlue,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TotalPanel extends StatelessWidget {
+  final int noches;
+  final int total;
+
+  const _TotalPanel({required this.noches, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _TotalMetric(
+              label: 'Noches',
+              value: '$noches',
+              icon: Icons.nights_stay_outlined,
+            ),
+          ),
+          Container(width: 1, height: 42, color: Colors.black12),
+          Expanded(
+            child: _TotalMetric(
+              label: 'Total',
+              value: '\$$total MXN',
+              icon: Icons.payments_outlined,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TotalMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _TotalMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: AppColors.darkBlue, size: 21),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.darkBlue,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentField extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final ValueChanged<String> onChanged;
+  final TextEditingController? controller;
+  final TextInputType? keyboardType;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
+
+  const _PaymentField({
+    required this.label,
+    required this.icon,
+    required this.onChanged,
+    this.controller,
+    this.keyboardType,
+    this.maxLength,
+    this.inputFormatters,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.35)),
+    );
+
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLength: maxLength,
+      inputFormatters: inputFormatters,
+      onChanged: onChanged,
+      style: const TextStyle(
+        color: Color(0xFF1D2530),
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+      ),
+      decoration: InputDecoration(
+        counterText: '',
+        filled: true,
+        fillColor: Colors.white,
+        hintText: label,
+        hintStyle: const TextStyle(
+          color: Colors.black54,
+          fontWeight: FontWeight.w700,
+        ),
+        prefixIcon: Icon(icon, color: AppColors.darkBlue),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 17,
+        ),
+        enabledBorder: border,
+        focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: AppColors.lightBlue, width: 2),
+        ),
+      ),
     );
   }
 }

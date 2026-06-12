@@ -16,8 +16,11 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false;
+  bool _isEmailLoading = false;
+  bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+
+  bool get _isAnyLoading => _isEmailLoading || _isGoogleLoading;
 
   @override
   void dispose() {
@@ -98,8 +101,10 @@ class _LoginPageState extends State<LoginPage> {
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _signInWithCredentials,
-                          child: _isLoading
+                          onPressed: _isAnyLoading
+                              ? null
+                              : _signInWithCredentials,
+                          child: _isEmailLoading
                               ? const CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation(
                                     Colors.white,
@@ -160,8 +165,8 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _signInWithGoogle,
-                    icon: _isLoading
+                    onPressed: _isAnyLoading ? null : _signInWithGoogle,
+                    icon: _isGoogleLoading
                         ? const SizedBox(
                             width: 24,
                             height: 24,
@@ -169,7 +174,7 @@ class _LoginPageState extends State<LoginPage> {
                           )
                         : const Icon(Icons.g_mobiledata, size: 32),
                     label: Text(
-                      _isLoading ? 'Cargando...' : 'Continuar con Google',
+                      _isGoogleLoading ? 'Cargando...' : 'Continuar con Google',
                     ),
                   ),
                 ),
@@ -216,7 +221,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() {
-      _isLoading = true;
+      _isEmailLoading = true;
     });
 
     try {
@@ -245,7 +250,7 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isEmailLoading = false;
         });
       }
     }
@@ -254,7 +259,7 @@ class _LoginPageState extends State<LoginPage> {
   // Llama al UserController para iniciar sesión con Google y persistir el usuario.
   Future<void> _signInWithGoogle() async {
     setState(() {
-      _isLoading = true;
+      _isGoogleLoading = true;
     });
 
     try {
@@ -282,7 +287,7 @@ class _LoginPageState extends State<LoginPage> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isGoogleLoading = false;
         });
       }
     }
