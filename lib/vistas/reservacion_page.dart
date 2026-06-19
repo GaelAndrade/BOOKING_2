@@ -1,10 +1,9 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../controllers/reservacion_controller.dart';
 import '../modelo/reservacion.dart';
 import '../theme/app_colors.dart';
+import '../utils/payment_validator.dart';
 import '../widgets/app_background.dart';
 
 class ReservacionPage extends StatefulWidget {
@@ -28,6 +27,7 @@ class ReservacionPage extends StatefulWidget {
 class _ReservacionPageState extends State<ReservacionPage> {
   DateTime? fechaEntrada;
   DateTime? fechaSalida;
+  int huespedes = 1;
 
   String nombreTitular = '';
   String numeroTarjeta = '';
@@ -55,6 +55,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
       fechaSalida = DateTime.fromMillisecondsSinceEpoch(
         widget.reservacion!.fechaSalida,
       );
+      huespedes = widget.reservacion!.huespedes;
     }
   }
 
@@ -101,18 +102,8 @@ class _ReservacionPageState extends State<ReservacionPage> {
     }
   }
 
-  String _formatExpiration(String input) {
-    final digits = input.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return '';
-    final month = digits.substring(0, min(2, digits.length));
-    final year = digits.length > 2
-        ? digits.substring(2, min(4, digits.length))
-        : '';
-    return year.isEmpty ? month : '$month/$year';
-  }
-
   void _onExpiracionChanged(String value) {
-    final formatted = _formatExpiration(value);
+    final formatted = PaymentValidator.formatExpiration(value);
     if (formatted != value) {
       _expiracionController.value = TextEditingValue(
         text: formatted,
@@ -122,31 +113,6 @@ class _ReservacionPageState extends State<ReservacionPage> {
     setState(() {
       expiracion = formatted;
     });
-  }
-
-  bool _isCardNumberValid(String value) {
-    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-    return digits.length == 16;
-  }
-
-  bool _isExpirationValid(String value) {
-    final match = RegExp(r'^(\d{2})/(\d{2})$').firstMatch(value);
-    if (match == null) return false;
-
-    final month = int.tryParse(match.group(1)!);
-    final year = int.tryParse(match.group(2)!);
-    if (month == null || year == null || month < 1 || month > 12) {
-      return false;
-    }
-
-    final now = DateTime.now();
-    final fullYear = 2000 + year;
-    final lastValidDay = DateTime(fullYear, month + 1, 0);
-    return !lastValidDay.isBefore(DateTime(now.year, now.month, now.day));
-  }
-
-  bool _isCvvValid(String value) {
-    return RegExp(r'^\d{3}$').hasMatch(value);
   }
 
   String _formatearFecha(DateTime? fecha) {
@@ -169,7 +135,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
-    if (!_isCardNumberValid(numeroTarjeta)) {
+    if (!PaymentValidator.isCardNumberValid(numeroTarjeta)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('El número de tarjeta debe tener 16 dígitos.'),
@@ -178,7 +144,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
-    if (!_isExpirationValid(expiracion)) {
+    if (!PaymentValidator.isExpirationValid(expiracion)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Ingresa una fecha de expiración válida en MM/AA.'),
@@ -187,7 +153,7 @@ class _ReservacionPageState extends State<ReservacionPage> {
       return;
     }
 
-    if (!_isCvvValid(cvv)) {
+    if (!PaymentValidator.isCvvValid(cvv)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('El CVV debe tener 3 dígitos.')),
       );
@@ -197,56 +163,25 @@ class _ReservacionPageState extends State<ReservacionPage> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    final hotel = await ReservacionController.instance.getHotelPorNombre(
-      widget.nombreHotel,
-    );
-    if (hotel == null || hotel.id == null) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('No se encontró el hotel en la base de datos.'),
-        ),
-      );
-      return;
-    }
-
-    final usuarioId = await ReservacionController.instance
-        .ensureCurrentUserId();
-    if (usuarioId == null) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Inicia sesión antes de reservar.')),
-      );
-      return;
-    }
-
-    final reservacion = Reservacion(
-      id: widget.reservacion?.id,
-      usuarioId: usuarioId,
-      hotelId: hotel.id!,
-      habitacionNombre: widget.nombreHabitacion,
-      fechaEntrada: fechaEntrada!.millisecondsSinceEpoch,
-      fechaSalida: fechaSalida!.millisecondsSinceEpoch,
-      huespedes: 1,
+    final result = await ReservacionController.instance.confirmarReservacion(
+      nombreHotel: widget.nombreHotel,
+      nombreHabitacion: widget.nombreHabitacion,
+      fechaEntrada: fechaEntrada!,
+      fechaSalida: fechaSalida!,
+      huespedes: huespedes,
       total: total.toDouble(),
-      estado: widget.reservacion?.estado ?? 'confirmada',
-      createdAt:
-          widget.reservacion?.createdAt ??
-          DateTime.now().millisecondsSinceEpoch,
+      isEditing: isEditing,
+      reservacionExistente: widget.reservacion,
     );
-
-    await ReservacionController.instance.guardarReservacion(reservacion);
 
     if (!mounted) return;
 
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          isEditing
-              ? 'Reservación actualizada.'
-              : 'Reservación guardada en la base de datos.',
-        ),
-      ),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(result.mensaje)));
+
+    if (!result.exito) {
+      return;
+    }
+
     navigator.pop(true);
   }
 
@@ -301,6 +236,15 @@ class _ReservacionPageState extends State<ReservacionPage> {
                       title: 'Salida',
                       value: _formatearFecha(fechaSalida),
                       onPressed: _seleccionarFechaSalida,
+                    ),
+                    const SizedBox(height: 12),
+                    _GuestSelector(
+                      value: huespedes,
+                      onChanged: (value) {
+                        setState(() {
+                          huespedes = value;
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
                     _TotalPanel(noches: numeroNoches, total: total),
@@ -585,6 +529,72 @@ class _DateButton extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestSelector extends StatelessWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _GuestSelector({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.people_outline, color: AppColors.darkBlue),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Huéspedes',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '$value ${value == 1 ? 'huésped' : 'huéspedes'}',
+                  style: const TextStyle(
+                    color: AppColors.darkBlue,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: value > 1 ? () => onChanged(value - 1) : null,
+            icon: const Icon(Icons.remove_circle_outline),
+            color: AppColors.darkBlue,
+          ),
+          Text(
+            '$value',
+            style: const TextStyle(
+              color: Color(0xFF1D2530),
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          IconButton(
+            onPressed: value < 6 ? () => onChanged(value + 1) : null,
+            icon: const Icon(Icons.add_circle_outline),
+            color: AppColors.darkBlue,
           ),
         ],
       ),

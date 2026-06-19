@@ -575,6 +575,40 @@ class AppDatabase {
     return maps.map((row) => Reservacion.fromMap(row)).toList();
   }
 
+  Future<bool> existeReservacionEmpalmada({
+    required int hotelId,
+    required String habitacionNombre,
+    required int fechaEntrada,
+    required int fechaSalida,
+    int? excluirReservacionId,
+  }) async {
+    final db = await database;
+    final where = StringBuffer(
+      'hotel_id = ? AND habitacion_nombre = ? '
+      'AND fecha_entrada < ? AND fecha_salida > ?',
+    );
+    final whereArgs = <Object>[
+      hotelId,
+      habitacionNombre,
+      fechaSalida,
+      fechaEntrada,
+    ];
+
+    if (excluirReservacionId != null) {
+      where.write(' AND id != ?');
+      whereArgs.add(excluirReservacionId);
+    }
+
+    final maps = await db.query(
+      'reservaciones',
+      columns: ['id'],
+      where: where.toString(),
+      whereArgs: whereArgs,
+      limit: 1,
+    );
+    return maps.isNotEmpty;
+  }
+
   Future<int> updateReservacion(Reservacion reservacion) async {
     final db = await database;
     return await db.update(

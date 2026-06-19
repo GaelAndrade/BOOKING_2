@@ -3,8 +3,8 @@
 // para que otras capas (vistas/controladores) lo consuman.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../data/app_database.dart';
 import '../modelo/usuario.dart';
+import '../repositories/usuario_repository.dart';
 
 class UserController {
   UserController._();
@@ -31,7 +31,7 @@ class UserController {
     final user = userCredential.user;
     if (user == null) return false;
 
-    final existing = await AppDatabase.instance.getUsuarioPorGoogleUid(
+    final existing = await UsuarioRepository.instance.getUsuarioPorGoogleUid(
       user.uid,
     );
     if (existing != null) {
@@ -47,14 +47,14 @@ class UserController {
       createdAt: now,
     );
 
-    final id = await AppDatabase.instance.insertUsuario(nuevo);
+    final id = await UsuarioRepository.instance.insertUsuario(nuevo);
     nuevo.id = id;
     currentUser = nuevo;
     return true;
   }
 
   Future<bool> signInWithEmailPassword(String email, String password) async {
-    final user = await AppDatabase.instance.getUsuarioPorEmailYPassword(
+    final user = await UsuarioRepository.instance.getUsuarioPorEmailYPassword(
       email,
       password,
     );
@@ -68,7 +68,7 @@ class UserController {
     String email,
     String password,
   ) async {
-    final existing = await AppDatabase.instance.getUsuarioPorEmail(email);
+    final existing = await UsuarioRepository.instance.getUsuarioPorEmail(email);
     if (existing != null) return false;
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -78,7 +78,7 @@ class UserController {
       password: password,
       createdAt: now,
     );
-    final id = await AppDatabase.instance.insertUsuario(nuevo);
+    final id = await UsuarioRepository.instance.insertUsuario(nuevo);
     nuevo.id = id;
     currentUser = nuevo;
     return true;
@@ -91,7 +91,7 @@ class UserController {
   }) async {
     if (currentUser == null || currentUser!.id == null) return false;
     if (email != null && email != currentUser!.email) {
-      final existingEmail = await AppDatabase.instance.getUsuarioPorEmail(
+      final existingEmail = await UsuarioRepository.instance.getUsuarioPorEmail(
         email,
       );
       if (existingEmail != null && existingEmail.id != currentUser!.id) {
@@ -109,7 +109,7 @@ class UserController {
       createdAt: currentUser!.createdAt,
     );
 
-    final result = await AppDatabase.instance.updateUsuario(updated);
+    final result = await UsuarioRepository.instance.updateUsuario(updated);
     if (result > 0) {
       currentUser = updated;
       return true;
@@ -123,7 +123,7 @@ class UserController {
 
     final fUser = _auth.currentUser;
     if (fUser != null) {
-      final dbUser = await AppDatabase.instance.getUsuarioPorGoogleUid(
+      final dbUser = await UsuarioRepository.instance.getUsuarioPorGoogleUid(
         fUser.uid,
       );
       if (dbUser != null) {
@@ -138,7 +138,7 @@ class UserController {
         email: fUser.email ?? '',
         createdAt: now,
       );
-      final id = await AppDatabase.instance.insertUsuario(nuevo);
+      final id = await UsuarioRepository.instance.insertUsuario(nuevo);
       nuevo.id = id;
       currentUser = nuevo;
       return id;

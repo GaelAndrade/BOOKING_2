@@ -344,6 +344,12 @@ class _ReservationCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _InfoLine(icon: Icons.bed_outlined, text: reserva.habitacionNombre),
+          const SizedBox(height: 10),
+          _InfoLine(
+            icon: Icons.people_outline,
+            text:
+                '${reserva.huespedes} ${reserva.huespedes == 1 ? 'huésped' : 'huéspedes'}',
+          ),
           const SizedBox(height: 14),
           Row(
             children: [
