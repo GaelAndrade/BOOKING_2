@@ -1,3 +1,4 @@
+import '../data/api_client.dart';
 import '../modelo/habitacion.dart';
 import '../modelo/hotel.dart';
 import '../modelo/reservacion.dart';
@@ -30,7 +31,8 @@ class ReservacionController {
   }
 
   Future<List<Reservacion>> getReservacionesUsuarioActual() async {
-    final usuarioId = await ensureCurrentUserId();
+    final usuario = await UserController.instance.ensureCurrentUserSynced();
+    final usuarioId = usuario?.id;
     if (usuarioId == null) return [];
     return ReservacionRepository.instance.getReservacionesPorUsuario(usuarioId);
   }
@@ -119,7 +121,14 @@ class ReservacionController {
           DateTime.now().millisecondsSinceEpoch,
     );
 
-    await guardarReservacion(reservacion);
+    try {
+      await guardarReservacion(reservacion);
+    } on ApiException catch (error) {
+      return ReservacionResult.error(
+        'No se pudo guardar en el servidor (${error.statusCode}): ${error.message}',
+      );
+    }
+
     return ReservacionResult.ok(
       isEditing
           ? 'Reservación actualizada.'

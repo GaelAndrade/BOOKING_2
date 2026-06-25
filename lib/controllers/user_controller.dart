@@ -147,6 +147,40 @@ class UserController {
     return null;
   }
 
+  Future<Usuario?> ensureCurrentUserSynced() async {
+    await ensureCurrentUserId();
+    if (currentUser == null) return null;
+
+    Usuario? serverUser;
+    if (currentUser!.googleUid != null && currentUser!.googleUid!.isNotEmpty) {
+      serverUser = await UsuarioRepository.instance.getUsuarioPorGoogleUid(
+        currentUser!.googleUid!,
+      );
+    }
+
+    serverUser ??= await UsuarioRepository.instance.getUsuarioPorEmail(
+      currentUser!.email,
+    );
+
+    if (serverUser != null) {
+      currentUser = serverUser;
+      return serverUser;
+    }
+
+    final usuarioParaCrear = Usuario(
+      googleUid: currentUser!.googleUid,
+      nombre: currentUser!.nombre,
+      email: currentUser!.email,
+      password: currentUser!.password,
+      fotoUrl: currentUser!.fotoUrl,
+      createdAt: currentUser!.createdAt,
+    );
+    final id = await UsuarioRepository.instance.insertUsuario(usuarioParaCrear);
+    usuarioParaCrear.id = id;
+    currentUser = usuarioParaCrear;
+    return usuarioParaCrear;
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
     await _googleSignIn.signOut();

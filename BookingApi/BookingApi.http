@@ -1,0 +1,41 @@
+@BookingApi_HostAddress = http://localhost:5090
+
+GET {{BookingApi_HostAddress}}/
+Accept: application/json
+
+###
+
+GET {{BookingApi_HostAddress}}/api/hoteles
+Accept: application/json
+
+###
+
+GET {{BookingApi_HostAddress}}/api/hoteles/1/habitaciones
+Accept: application/json
+
+###
+
+POST {{BookingApi_HostAddress}}/api/usuarios/login
+Content-Type: application/json
+
+{
+  "email": "local@booking.app",
+  "password": "123456"
+}
+
+###
+
+POST {{BookingApi_HostAddress}}/api/reservaciones
+Content-Type: application/json
+
+{
+  "usuario_id": 1,
+  "hotel_id": 1,
+  "habitacion_nombre": "Habitacion doble",
+  "fecha_entrada": 1782352800000,
+  "fecha_salida": 1782439200000,
+  "huespedes": 2,
+  "total": 1200,
+  "estado": "confirmada",
+  "created_at": 0
+}

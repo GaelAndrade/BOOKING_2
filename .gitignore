@@ -17,3 +17,9 @@ ios/Flutter/Flutter.podspec
 *.iml
 .idea/
 .vscode/
+
+# .NET backend
+BookingApi/bin/
+BookingApi/obj/
+BookingApi/App_Data/
+BookingApi/*.log
